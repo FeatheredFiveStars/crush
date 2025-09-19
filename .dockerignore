@@ -1,0 +1,24 @@
+# Build artifacts
+bin/
+dist/
+*.log
+*.tmp
+*.swp
+
+# Go build cache and coverage
+*.out
+cover/
+
+# Node/yarn caches if present
+node_modules/
+
+# Git and CI metadata
+.git
+.github
+
+# Editor settings
+.vscode/
+.idea/
+
+# Docker build context extras
+Dockerfile.local

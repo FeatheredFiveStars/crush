@@ -1,0 +1,20 @@
+services:
+  crush:
+    build:
+      context: .
+    image: crush:local
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - crush-config:/home/crush/.config/crush
+      - crush-data:/home/crush/.local/share/crush
+    environment:
+      HOME: /home/crush
+      XDG_CONFIG_HOME: /home/crush/.config
+      XDG_DATA_HOME: /home/crush/.local/share
+
+volumes:
+  crush-config:
+  crush-data:
