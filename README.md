@@ -162,6 +162,80 @@ Or just install it with Go:
 go install github.com/charmbracelet/crush@latest
 ```
 
+## Docker
+
+Crush can also be built and executed inside a container when you want some
+isolation from the host operating system. The provided Docker configuration
+compiles the application from source and keeps the runtime image lean so that
+you can layer on additional tooling later (for example, MCP servers).
+
+### Build the image
+
+```bash
+docker build -t crush:local .
+```
+
+Or, if you prefer Docker Desktop's Compose workflow:
+
+```bash
+docker compose build
+```
+
+### Run with Docker
+
+The container default command launches the Crush TUI. Mount your project and
+any persistent configuration directories when you run the container so that the
+agent can see your files and remember its state between runs:
+
+```bash
+docker run -it --rm \
+  -v "$(pwd)":/workspace \
+  -v crush-config:/home/crush/.config/crush \
+  -v crush-data:/home/crush/.local/share/crush \
+  -e OPENAI_API_KEY=sk-example \
+  crush:local
+```
+
+> [!TIP]
+> On Windows PowerShell replace `"$(pwd)"` with `${PWD}`.
+
+This starts Crush inside the container with your current directory mounted at
+`/workspace`. Persistent named volumes (`crush-config` and `crush-data`) are
+used to store application settings and session history; you can swap them for
+bind mounts if you prefer to keep those files alongside your repository.
+
+### Run with Docker Compose
+
+Docker Desktop users can rely on the bundled `docker-compose.yml` for a more
+repeatable setup:
+
+```bash
+docker compose run --rm crush
+```
+
+The Compose service already mounts the repository into `/workspace`, attaches
+the persistent volumes, and allocates a TTY for the interactive UI. Pass
+additional environment variables (such as API keys) by editing the Compose
+file, creating a `.env`, or appending `-e VAR=value` to the command above.
+
+### Extending the container
+
+The runtime image is based on Debian Bookworm with only Git and CA certificates
+installed so the agent can run out of the box. To add more tooling (for
+example, MCP servers or language servers) you can extend the image:
+
+```Dockerfile
+FROM crush:local
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl jq \
+ && rm -rf /var/lib/apt/lists/*
+USER crush
+```
+
+Or, for ad-hoc tools, append additional packages under the `docker compose`
+service using the `build` section.
+
 > [!WARNING]
 > Productivity may increase when using Crush and you may find yourself nerd
 > sniped when first using the application. If the symptoms persist, join the
