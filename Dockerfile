@@ -1,40 +1,39 @@
-# syntax=docker/dockerfile:1
+# Build stage
+FROM golang:1.25 AS builder
 
-FROM golang:1.23-bookworm AS build
-WORKDIR /src
+WORKDIR /app
 
+# Copy go mod files
 COPY go.mod go.sum ./
+COPY crush.json ./
+# Download dependencies
 RUN go mod download
 
+# Copy source code
 COPY . .
-RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /out/crush ./
 
-FROM debian:bookworm-slim AS runtime
-ARG USERNAME=crush
-ARG USER_UID=1000
-ARG USER_GID=1000
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o crush .
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        git \
-    && rm -rf /var/lib/apt/lists/*
+# Final stage
+FROM alpine:3.18
 
-RUN groupadd --gid "${USER_GID}" "${USERNAME}" \
-    && useradd --uid "${USER_UID}" --gid "${USER_GID}" --create-home --shell /bin/bash "${USERNAME}"
+# Install ca-certificates for HTTPS requests and git for version control
+RUN apk --no-cache add ca-certificates git
 
-ENV HOME=/home/${USERNAME} \
-    XDG_CONFIG_HOME=/home/${USERNAME}/.config \
-    XDG_DATA_HOME=/home/${USERNAME}/.local/share
+RUN mkdir -p /src
+VOLUME /src
 
-WORKDIR /workspace
+WORKDIR /root/
 
-RUN mkdir -p /workspace \
-    && mkdir -p "${XDG_CONFIG_HOME}/crush" "${XDG_DATA_HOME}/crush" \
-    && chown -R "${USERNAME}:${USERNAME}" /workspace "${HOME}"
+# Copy the binary from builder stage
+COPY --from=builder /app/crush .
 
-COPY --from=build /out/crush /usr/local/bin/crush
+# Create necessary directories
+RUN mkdir -p .config/crush .local/share/crush
+COPY crush.json .config/crush
+# Expose port for profiling (optional)
+EXPOSE 6060
 
-USER ${USERNAME}
-
-ENTRYPOINT ["crush"]
+# Run the application
+ENTRYPOINT ["/bin/sh"]
